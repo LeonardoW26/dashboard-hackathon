@@ -2,7 +2,7 @@ import L from "leaflet";
 import "leaflet.heat";
 import "leaflet/dist/leaflet.css";
 import { useEffect, useMemo, useState } from "react";
-import { CircleMarker, MapContainer, Pane, Polygon, TileLayer, useMap, Marker, Polyline } from "react-leaflet";
+import { CircleMarker, MapContainer, Pane, Polygon, TileLayer, useMap } from "react-leaflet";
 
 type Passada = "pre" | "plantio" | "adubo";
 type Detection = { id: string; lat: number; lng: number; ts: string; passada: Passada; classe: "erva" | "doenca"; conf: number; img: string };
@@ -18,7 +18,7 @@ function pointInPolygon(point: [number, number], polygon: [number, number][]) {
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
     const xi = polygon[i][0], yi = polygon[i][1];
     const xj = polygon[j][0], yj = polygon[j][1];
-    const intersect = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+    const intersect = (yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
     if (intersect) inside = !inside;
   }
   return inside;
@@ -89,43 +89,23 @@ function sampleHeatPoints(opts: { polygon: [number, number][]; hotspots: { lng: 
   return points;
 }
 
-function HeatLayer({
-  points,
-  radius = 15,
-  blur = 20,
-  maxZoom = 19,
-  pane,
-}: {
-  points: [number, number, number][];
-  radius?: number;
-  blur?: number;
-  maxZoom?: number;
-  pane?: string;
-}) {
+function HeatLayer({ points, radius = 15, blur = 20, maxZoom = 19, pane }: { points: [number, number, number][]; radius?: number; blur?: number; maxZoom?: number; pane?: string; }) {
   const map = useMap();
   useEffect(() => {
     const layer = (L as any).heatLayer(points, {
-      radius,
-      blur,
-      maxZoom,
-      pane,
-      minOpacity: 0.25,
-      maxOpacity: 0.95,
+      radius, blur, maxZoom, pane,
+      minOpacity: 0.25, maxOpacity: 0.95,
       gradient: { 0.0: "#22c55e", 0.35: "#eab308", 0.7: "#ef4444", 1.0: "#7f1d1d" },
     });
     layer.addTo(map);
-    return () => {
-      layer.remove();
-    };
+    return () => { layer.remove(); };
   }, [map, points, radius, blur, maxZoom, pane]);
   return null;
 }
 
 function FitView({ bounds }: { bounds: L.LatLngBounds }) {
   const map = useMap();
-  useEffect(() => {
-    map.fitBounds(bounds, { padding: [20, 20] });
-  }, [map, bounds]);
+  useEffect(() => { map.fitBounds(bounds, { padding: [20, 20] }); }, [map, bounds]);
   return null;
 }
 
@@ -144,11 +124,7 @@ function Sparkline({ data, stroke = "#0ea5e9" }: { data: number[]; stroke?: stri
   const scaleX = (i: number) => p + (i * (w - 2 * p)) / (data.length - 1 || 1);
   const scaleY = (v: number) => h - p - ((v - min) / Math.max(1e-6, max - min)) * (h - 2 * p);
   const d = data.map((v, i) => `${i === 0 ? "M" : "L"} ${scaleX(i)} ${scaleY(v)}`).join(" ");
-  return (
-    <svg width={w} height={h}>
-      <path d={d} fill="none" stroke={stroke} strokeWidth="2" />
-    </svg>
-  );
+  return <svg width={w} height={h}><path d={d} fill="none" stroke={stroke} strokeWidth="2" /></svg>;
 }
 
 function IndicatorCard({ title, value, subtitle, accent = "#0ea5e9", footer }: { title: string; value: string; subtitle?: string; accent?: string; footer?: React.ReactNode }) {
@@ -261,33 +237,12 @@ const EX_POLYGON: [number, number][] = [
   [-52.7798284, -26.2820886],
 ];
 
-function numIcon(n: number) {
-  return L.divIcon({
-    className: "",
-    html: `<div style="width:28px;height:28px;border-radius:14px;background:#0ea5e9;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;border:2px solid #0c779f;box-shadow:0 2px 6px rgba(0,0,0,.25)">${n}</div>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-  });
-}
-
-function haversine(a: [number, number], b: [number, number]) {
-  const R = 6371000;
-  const dLat = ((b[0] - a[0]) * Math.PI) / 180;
-  const dLng = ((b[1] - a[1]) * Math.PI) / 180;
-  const s1 = Math.sin(dLat / 2);
-  const s2 = Math.sin(dLng / 2);
-  const A =
-    s1 * s1 +
-    Math.cos((a[0] * Math.PI) / 180) * Math.cos((b[0] * Math.PI) / 180) * s2 * s2;
-  return 2 * R * Math.asin(Math.min(1, Math.sqrt(A)));
-}
-
 export default function MapaCalorPropriedade() {
-  const [seed] = useState(1234567);
-  const [samples] = useState(1000000);
-  const [radius] = useState(15);
-  const [blur] = useState(20);
-  const [hotspotCount] = useState(8);
+  const [seed] = useState(12345678);
+  const [samples] = useState(10000000);
+  const [radius] = useState(10);
+  const [blur] = useState(40);
+  const [hotspotCount] = useState(5);
   const [polygon] = useState<[number, number][]>(EX_POLYGON);
   const [selected, setSelected] = useState<Set<Passada>>(new Set<Passada>(["pre", "plantio", "adubo"]));
   const [detShown, setDetShown] = useState<Detection | null>(null);
@@ -296,9 +251,6 @@ export default function MapaCalorPropriedade() {
   const [precoPorL, setPrecoPorL] = useState(45);
   const [perdaHa, setPerdaHa] = useState(600);
   const [eficacia, setEficacia] = useState(0.7);
-
-  const [gridSize, setGridSize] = useState(40);
-  const [topN, setTopN] = useState(8);
 
   const hotspotsPre = useMemo(() => generateHotspots({ polygon, count: hotspotCount, seed: seed + 11 }).map(h => ({ ...h, passada: "pre" as Passada })), [polygon, hotspotCount, seed]);
   const hotspotsPlantio = useMemo(() => generateHotspots({ polygon, count: hotspotCount, seed: seed + 22 }).map(h => ({ ...h, passada: "plantio" as Passada })), [polygon, hotspotCount, seed]);
@@ -359,15 +311,6 @@ export default function MapaCalorPropriedade() {
     return meanAmp * meanSpread;
   }, [activeHotspots]);
 
-  const daysTo50 = useMemo(() => {
-    const current = coverage / 100;
-    const deficit = Math.max(0, 0.5 - current);
-    if (deficit === 0) return "1–2 dias";
-    const rate = Math.max(0.01, spreadPotential / 120);
-    const days = Math.round(Math.min(21, Math.max(2, (deficit / 0.12) * (8 / rate))));
-    return `${days} dias`;
-  }, [coverage, spreadPotential]);
-
   const meanIntensity = useMemo(() => {
     if (!heatPoints.length) return 0;
     const sum = heatPoints.reduce((a, p) => a + p[2], 0);
@@ -399,11 +342,24 @@ export default function MapaCalorPropriedade() {
     return Number((projection7d[projection7d.length - 1] - projection7d[0]).toFixed(1));
   }, [projection7d]);
 
+  const growthPerDay = useMemo(() => Number((projDelta7d / 7).toFixed(2)), [projDelta7d]);
+  const growthLabel = useMemo(() => `${growthPerDay >= 0 ? "+" : ""}${growthPerDay} pp/dia`, [growthPerDay]);
+
   const riskLabel = useMemo(() => {
     if (coverage >= 60) return { label: "Alto", color: "#ef4444" };
     if (coverage >= 30) return { label: "Médio", color: "#eab308" };
     return { label: "Baixo", color: "#22c55e" };
   }, [coverage]);
+
+  const riskScore = useMemo(() => {
+    const score = Math.min(100, Math.max(0, 0.65 * coverage + 2.5 * Math.max(0, growthPerDay)));
+    let label = "Baixo", color = "#22c55e";
+    if (score >= 70) { label = "Alto"; color = "#ef4444"; }
+    else if (score >= 40) { label = "Médio"; color = "#eab308"; }
+    return { score: Number(score.toFixed(0)), label, color };
+  }, [coverage, growthPerDay]);
+
+  const areaSeveraEq = useMemo(() => Number(((meanIntensity / 100) * areaHa).toFixed(2)), [meanIntensity, areaHa]);
 
   function EvidencePanel({ det, onClose }: { det: Detection; onClose: () => void }) {
     const date = new Date(det.ts);
@@ -455,135 +411,11 @@ export default function MapaCalorPropriedade() {
     );
   }
 
-  const routeData = useMemo(() => {
-    if (!heatPoints.length) return { cells: [], selected: [], path: [] as [number, number][], geojson: null as any, kml: "" };
-
-    const lngs = polygon.map((p) => p[0]);
-    const lats = polygon.map((p) => p[1]);
-    const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
-    const minLat = Math.min(...lats), maxLat = Math.max(...lats);
-    const latCenter = (minLat + maxLat) / 2;
-
-    const dLng = metersToDegreesLng(gridSize, latCenter);
-    const dLat = metersToDegreesLat(gridSize);
-
-    const nx = Math.max(1, Math.ceil((maxLng - minLng) / dLng));
-    const ny = Math.max(1, Math.ceil((maxLat - minLat) / dLat));
-
-    const acc: Record<string, { wSum: number; wCount: number; det: number }> = {};
-
-    for (const [lat, lng, w] of heatPoints) {
-      const ix = Math.floor((lng - minLng) / dLng);
-      const iy = Math.floor((lat - minLat) / dLat);
-      if (ix < 0 || iy < 0 || ix >= nx || iy >= ny) continue;
-      const key = `${ix},${iy}`;
-      if (!acc[key]) acc[key] = { wSum: 0, wCount: 0, det: 0 };
-      acc[key].wSum += w;
-      acc[key].wCount += 1;
-    }
-
-    for (const d of activeDetections) {
-      const ix = Math.floor((d.lng - minLng) / dLng);
-      const iy = Math.floor((d.lat - minLat) / dLat);
-      if (ix < 0 || iy < 0 || ix >= nx || iy >= ny) continue;
-      const key = `${ix},${iy}`;
-      if (!acc[key]) acc[key] = { wSum: 0, wCount: 0, det: 0 };
-      acc[key].det += 1;
-    }
-
-    const cells: {
-      ix: number; iy: number;
-      lat: number; lng: number;
-      wAvg: number; det: number; score: number;
-      bbox: [number, number, number, number];
-    }[] = [];
-
-    let maxDet = 0;
-    for (const k in acc) maxDet = Math.max(maxDet, acc[k].det);
-
-    for (const k in acc) {
-      const [ixStr, iyStr] = k.split(",");
-      const ix = Number(ixStr), iy = Number(iyStr);
-      const minx = minLng + ix * dLng;
-      const miny = minLat + iy * dLat;
-      const maxx = minx + dLng;
-      const maxy = miny + dLat;
-      const cx = (minx + maxx) / 2;
-      const cy = (miny + maxy) / 2;
-      if (!pointInPolygon([cx, cy], polygon)) continue;
-      const a = acc[k];
-      const wAvg = a.wCount ? a.wSum / a.wCount : 0;
-      const detN = maxDet > 0 ? a.det / maxDet : 0;
-      const score = 0.7 * wAvg + 0.3 * detN;
-      cells.push({ ix, iy, lat: cy, lng: cx, wAvg, det: a.det, score, bbox: [minx, miny, maxx, maxy] });
-    }
-
-    cells.sort((a, b) => b.score - a.score);
-    const selected = cells.slice(0, Math.min(topN, cells.length));
-
-    if (!selected.length) return { cells, selected, path: [] as [number, number][], geojson: null as any, kml: "" };
-
-    const remaining = [...selected];
-    const path: { lat: number; lng: number }[] = [];
-    let current = remaining.shift()!;
-    path.push({ lat: current.lat, lng: current.lng });
-    while (remaining.length) {
-      let bestIdx = 0;
-      let bestD = Infinity;
-      for (let i = 0; i < remaining.length; i++) {
-        const d = haversine([current.lat, current.lng], [remaining[i].lat, remaining[i].lng]);
-        if (d < bestD) { bestD = d; bestIdx = i; }
-      }
-      current = remaining.splice(bestIdx, 1)[0];
-      path.push({ lat: current.lat, lng: current.lng });
-    }
-
-    const features = selected.map((c, i) => {
-      const [minx, miny, maxx, maxy] = c.bbox;
-      const poly = [[minx, miny], [maxx, miny], [maxx, maxy], [minx, maxy], [minx, miny]].map(([x, y]) => [x, y]);
-      return {
-        type: "Feature",
-        geometry: { type: "Polygon", coordinates: [poly.map(([lng, lat]) => [lng, lat])] },
-        properties: { rank: i + 1, score: Number(c.score.toFixed(3)), wAvg: Number(c.wAvg.toFixed(3)), det: c.det, centroid: [c.lng, c.lat], gridSize },
-      };
-    });
-
-    const line = {
-      type: "Feature",
-      geometry: { type: "LineString", coordinates: path.map(p => [p.lng, p.lat]) },
-      properties: { name: "Roteiro de pulverização" }
-    };
-
-    const geojson = { type: "FeatureCollection", features: [...features, line] };
-
-    const kmlHead = `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document>`;
-    const kmlCells = selected.map((c, i) => {
-      const [minx, miny, maxx, maxy] = c.bbox;
-      const coords = `${minx},${miny},0 ${maxx},${miny},0 ${maxx},${maxy},0 ${minx},${maxy},0 ${minx},${miny},0`;
-      return `<Placemark><name>${i + 1}</name><ExtendedData><Data name="score"><value>${c.score.toFixed(3)}</value></Data><Data name="wAvg"><value>${c.wAvg.toFixed(3)}</value></Data><Data name="det"><value>${c.det}</value></Data></ExtendedData><Polygon><outerBoundaryIs><LinearRing><coordinates>${coords}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>`;
-    }).join("");
-    const kmlRoute = `<Placemark><name>Roteiro</name><Style><LineStyle><color>ff9f7f0c</color><width>3</width></LineStyle></Style><LineString><coordinates>${path.map(p => `${p.lng},${p.lat},0`).join(" ")}</coordinates></LineString></Placemark>`;
-    const kml = `${kmlHead}${kmlCells}${kmlRoute}</Document></kml>`;
-
-    return { cells, selected, path: path.map(p => [p.lat, p.lng] as [number, number]), geojson, kml };
-  }, [heatPoints, activeDetections, polygon, gridSize, topN]);
-
-  function download(name: string, content: string, mime: string) {
-    const blob = new Blob([content], { type: mime });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }
-
   return (
     <div style={{ minHeight: "100dvh", background: "#f5f7fb", padding: 24 }}>
       <div style={{ width: "100%", margin: 0 }}>
         <div style={{ display: "grid", gridTemplateColumns: "minmax(300px, 420px) 1fr", gap: 20 }}>
+          {/* Coluna esquerda */}
           <div>
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
               <Chip active={selected.has("pre")} onClick={() => setSelected(s => { const n = new Set(s); n.has("pre") ? n.delete("pre") : n.add("pre"); return n; })}>Pré</Chip>
@@ -601,50 +433,52 @@ export default function MapaCalorPropriedade() {
                 beneficio={beneficio}
                 roi={roi}
               />
-              <IndicatorCard title="Tempo para espalhar (50% do talhão)" value={daysTo50} subtitle="Estimativa baseada na intensidade e dispersão atuais" accent="#0ea5e9" footer={<Progress value={coverage} />} />
-              <IndicatorCard title="Área crítica (≥ limiar)" value={`${criticalHa} ha`} subtitle={`de ${areaHa} ha • ${coverage}% afetada`} accent="#ef4444" footer={<Progress value={coverage} />} />
-              <IndicatorCard title="Focos ativos" value={`${activeHotspots.length}`} subtitle={`Densidade: ${Number((activeHotspots.length / Math.max(0.001, areaHa)).toFixed(2))} focos/ha • Risco ${riskLabel.label}`} accent={riskLabel.color} />
-              <IndicatorCard title="Tendência (7 dias)" value={`${projection7d[projection7d.length - 1] || 0}%`} subtitle={`${projDelta7d >= 0 ? "+" : ""}${projDelta7d} pp vs hoje`} accent="#0ea5e9" footer={<Sparkline data={projection7d} stroke="#0ea5e9" />} />
               <IndicatorCard title="Severidade média" value={`${meanIntensity}%`} subtitle={`p95: ${p95Intensity}%`} accent="#8b5cf6" footer={<Progress value={meanIntensity} />} />
+              {/* Área do talhão movida para baixo à esquerda */}
+              <IndicatorCard title="Área do talhão" value={`${areaHa} ha`} subtitle="polígono atual" accent="#0ea5e9" />
             </div>
           </div>
 
+          {/* Coluna direita: indicadores de topo + mapa */}
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                <div style={{ fontWeight: 700, color: "#0f172a" }}>Roteiro de pulverização</div>
-                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#334155" }}>
-                  Malha
-                  <input type="number" min={20} step={10} value={gridSize} onChange={(e) => setGridSize(Math.max(10, Number(e.target.value)))} style={{ width: 72, border: "1px solid #e5e7eb", borderRadius: 8, padding: "6px 8px" }} />
-                  m
-                </label>
-                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#334155" }}>
-                  Top N
-                  <input type="number" min={1} max={20} value={topN} onChange={(e) => setTopN(Math.max(1, Math.min(20, Number(e.target.value))))} style={{ width: 56, border: "1px solid #e5e7eb", borderRadius: 8, padding: "6px 8px" }} />
-                </label>
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  onClick={() => {
-                    if (!routeData.geojson) return;
-                    download("roteiro.geojson", JSON.stringify(routeData.geojson, null, 2), "application/geo+json");
-                  }}
-                  style={{ padding: "8px 12px", borderRadius: 10, border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer" }}
-                >
-                  Exportar GeoJSON
-                </button>
-                <button
-                  onClick={() => {
-                    if (!routeData.kml) return;
-                    download("roteiro.kml", routeData.kml, "application/vnd.google-earth.kml+xml");
-                  }}
-                  style={{ padding: "8px 12px", borderRadius: 10, border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer" }}
-                >
-                  Exportar KML
-                </button>
-              </div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(4, minmax(180px, 1fr))",
+                gap: 12,
+                margin: "0 0 12px",
+              }}
+            >
+              <IndicatorCard
+                title="Crescimento estimado"
+                value={growthLabel}
+                subtitle={`Projeção 7d: ${projDelta7d >= 0 ? "+" : ""}${projDelta7d} pp`}
+                accent="#0ea5e9"
+                footer={<Sparkline data={projection7d} stroke="#0ea5e9" />}
+              />
+              <IndicatorCard
+                title="Área crítica (≥ limiar)"
+                value={`${criticalHa} ha`}
+                subtitle={`${coverage}% da área`}
+                accent="#ef4444"
+                footer={<Progress value={coverage} />}
+              />
+              <IndicatorCard
+                title="Focos ativos"
+                value={`${activeHotspots.length}`}
+                subtitle={`Densidade: ${Number((activeHotspots.length / Math.max(0.001, areaHa)).toFixed(2))} focos/ha • Risco ${riskLabel.label}`}
+                accent={riskLabel.color}
+              />
+              <IndicatorCard
+                title="Risco composto"
+                value={riskScore.label}
+                subtitle={`score ${riskScore.score}/100`}
+                accent={riskScore.color}
+                footer={<Progress value={riskScore.score} />}
+              />
             </div>
 
+            {/* Mapa */}
             <div style={{ position: "relative" }}>
               <div style={{ borderRadius: 18, overflow: "hidden", border: "1px solid #e5e7eb", boxShadow: "0 12px 28px rgba(0,0,0,0.08)" }}>
                 <MapContainer
@@ -666,26 +500,6 @@ export default function MapaCalorPropriedade() {
                   <Polygon positions={polygon.map((p) => [p[1], p[0]] as [number, number])} pathOptions={{ color: "#0ea5e9", weight: 2, fillColor: "#0ea5e9", fillOpacity: 0.07 }} />
                   <Pane name="heat" style={{ zIndex: 350, pointerEvents: "none" }} />
                   <HeatLayer points={heatPoints} radius={radius} blur={blur} pane="heat" />
-
-                  {routeData.selected.map((c, i) => {
-                    const [minx, miny, maxx, maxy] = c.bbox;
-                    const rect = [
-                      [miny, minx],
-                      [miny, maxx],
-                      [maxy, maxx],
-                      [maxy, minx],
-                    ] as [number, number][];
-                    return (
-                      <div key={`cell-${c.ix}-${c.iy}`}>
-                        <Polygon positions={rect} pathOptions={{ color: "#0ea5e9", weight: 1, fillColor: "#0ea5e9", fillOpacity: 0.08 }} />
-                        <Marker position={[c.lat, c.lng]} icon={numIcon(i + 1)} />
-                      </div>
-                    );
-                  })}
-
-                  {routeData.path.length > 1 && (
-                    <Polyline positions={routeData.path} pathOptions={{ color: "#0ea5e9", weight: 3, opacity: 0.8 }} />
-                  )}
 
                   {visibleDetections.map((d) => (
                     <CircleMarker
@@ -709,9 +523,6 @@ export default function MapaCalorPropriedade() {
                   <span style={{ width: 10, height: 10, borderRadius: 999, background: "#ef4444", display: "inline-block" }} />
                   Vermelho = doença
                 </span>
-                <span style={{ marginLeft: "auto", fontSize: 12, color: "#334155" }}>
-                  Top {topN} células priorizadas • malha {gridSize} m
-                </span>
               </div>
 
               {detShown && (
@@ -724,6 +535,6 @@ export default function MapaCalorPropriedade() {
           </div>
         </div>
       </div>
-    </div >
+    </div>
   );
 }
